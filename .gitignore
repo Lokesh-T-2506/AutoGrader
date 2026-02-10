@@ -1,0 +1,44 @@
+# General
+.DS_Store
+.idea/
+.vscode/
+*.log
+*.tmp
+
+# Backend (Java/Gradle)
+backend/build/
+backend/.gradle/
+backend/out/
+backend/*.jar
+backend/*.war
+backend/.env
+
+# ML Services (Python)
+ml-services/**/__pycache__/
+ml-services/**/*.pyc
+ml-services/**/.pytest_cache/
+ml-services/**/venv/
+ml-services/**/env/
+ml-services/**/.env
+ml-services/**/models/downloaded/
+ml-services/**/data/uploads/
+ml-services/**/*.egg-info/
+
+# Jupyter Notebooks
+ml-services/**/.ipynb_checkpoints/
+ml-services/**/notebooks/outputs/
+
+# Database
+*.db
+*.sqlite
+
+# Frontend (when added)
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Docker
+docker-compose.override.yml
+
+# OS
+Thumbs.db

@@ -1,0 +1,19 @@
+fastapi==0.110.0
+uvicorn==0.27.1
+python-multipart==0.0.9
+pydantic==2.6.1
+pydantic-settings==2.1.0
+
+# OCR and Image Processing
+transformers==4.37.2
+torch==2.2.0
+torchvision==0.17.0
+easyocr==1.7.1
+pytesseract==0.3.10
+opencv-python==4.9.0.80
+Pillow==10.2.0
+numpy==1.26.3
+
+# Utils
+python-dotenv==1.0.1
+aiofiles==23.2.1

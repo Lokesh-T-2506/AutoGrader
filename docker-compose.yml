@@ -1,0 +1,82 @@
+version: '3.8'
+
+services:
+  # Backend Service
+  backend:
+    build: ./backend
+    container_name: autograder-backend
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/autograder
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - ML_SERVICE_OCR_URL=http://ocr-service:8001
+      - ML_SERVICE_MATH_PARSER_URL=http://math-parser:8002
+      - ML_SERVICE_GRADING_URL=http://grading-engine:8003
+      - ML_SERVICE_FEEDBACK_URL=http://feedback-generator:8004
+    depends_on:
+      - postgres
+    networks:
+      - autograder-network
+
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: autograder-postgres
+    environment:
+      - POSTGRES_DB=autograder
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - autograder-network
+
+  # OCR Service
+  ocr-service:
+    build: ./ml-services/ocr-service
+    container_name: autograder-ocr
+    ports:
+      - "8001:8001"
+    networks:
+      - autograder-network
+
+  # Math Parser Service
+  math-parser:
+    build: ./ml-services/math-parser
+    container_name: autograder-math-parser
+    ports:
+      - "8002:8002"
+    networks:
+      - autograder-network
+
+  # Grading Engine
+  grading-engine:
+    build: ./ml-services/grading-engine
+    container_name: autograder-grading
+    ports:
+      - "8003:8003"
+    networks:
+      - autograder-network
+
+  # Feedback Generator
+  feedback-generator:
+    build: ./ml-services/feedback-generator
+    container_name: autograder-feedback
+    ports:
+      - "8004:8004"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    networks:
+      - autograder-network
+
+volumes:
+  postgres-data:
+
+
+networks:
+  autograder-network:
+    driver: bridge
