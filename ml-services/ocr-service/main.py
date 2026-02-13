@@ -24,6 +24,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+from transformers import TrOCRProcessor, VisionEncoderDecoderModel
+from PIL import Image
+import torch
+import time
+import io
+
+# Load TrOCR model and processor
+logger.info("Loading TrOCR model...")
+device = "cuda" if torch.cuda.is_available() else "cpu"
+processor = TrOCRProcessor.from_pretrained("microsoft/trocr-base-handwritten")
+model = VisionEncoderDecoderModel.from_pretrained("microsoft/trocr-base-handwritten").to(device)
+logger.info(f"TrOCR model loaded on {device}")
+
 # Response models
 class OCRResponse(BaseModel):
     text: str
@@ -40,7 +53,8 @@ async def root():
     return {
         "service": "AutoGrader OCR Service",
         "status": "running",
-        "version": "1.0.0"
+        "version": "1.0.0",
+        "device": device
     }
 
 @app.get("/health")
@@ -50,24 +64,31 @@ async def health_check():
 @app.post("/api/ocr/extract", response_model=OCRResponse)
 async def extract_text(file: UploadFile = File(...)):
     """
-    Extract text from a handwritten image using OCR.
-    
-    Args:
-        file: Image file (jpg, png, pdf)
-    
-    Returns:
-        OCRResponse with extracted text and confidence
+    Extract text from a handwritten image using TrOCR.
     """
     try:
-        # TODO: Implement actual OCR logic
+        start_time = time.time()
         logger.info(f"Processing file: {file.filename}")
         
-        # Placeholder response
+        # Read image
+        contents = await file.read()
+        image = Image.open(io.BytesIO(contents)).convert("RGB")
+        
+        # Prepare image for model
+        pixel_values = processor(image, return_tensors="pt").pixel_values.to(device)
+        
+        # Generate transcription
+        generated_ids = model.generate(pixel_values)
+        generated_text = processor.batch_decode(generated_ids, skip_special_tokens=True)[0]
+        
+        processing_time = time.time() - start_time
+        logger.info(f"OCR completed in {processing_time:.2f}s")
+        
         return OCRResponse(
-            text="Sample extracted text - implementation pending",
-            confidence=0.85,
-            model_used="trocr-base-handwritten",
-            processing_time=1.5
+            text=generated_text,
+            confidence=0.90, # Placeholder confidence
+            model_used="microsoft/trocr-base-handwritten",
+            processing_time=processing_time
         )
     except Exception as e:
         logger.error(f"Error processing OCR: {str(e)}")
@@ -76,31 +97,21 @@ async def extract_text(file: UploadFile = File(...)):
 @app.post("/api/ocr/batch", response_model=BatchOCRResponse)
 async def batch_extract_text(files: List[UploadFile] = File(...)):
     """
-    Batch process multiple images for OCR.
-    
-    Args:
-        files: List of image files
-    
-    Returns:
-        BatchOCRResponse with results for all files
+    Batch process multiple images for OCR using TrOCR.
     """
     try:
+        start_time = time.time()
         logger.info(f"Batch processing {len(files)} files")
         
-        # TODO: Implement batch OCR logic
-        results = [
-            OCRResponse(
-                text=f"Sample text from {file.filename}",
-                confidence=0.85,
-                model_used="trocr-base-handwritten",
-                processing_time=1.5
-            )
-            for file in files
-        ]
+        results = []
+        for file in files:
+            res = await extract_text(file)
+            results.append(res)
         
+        total_time = time.time() - start_time
         return BatchOCRResponse(
             results=results,
-            total_processing_time=len(files) * 1.5
+            total_processing_time=total_time
         )
     except Exception as e:
         logger.error(f"Error in batch OCR: {str(e)}")

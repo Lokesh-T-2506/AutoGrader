@@ -5,9 +5,9 @@ pydantic==2.6.1
 pydantic-settings==2.1.0
 
 # OCR and Image Processing
-transformers==4.37.2
-torch==2.2.0
-torchvision==0.17.0
+transformers>=4.37.2
+torch>=2.2.0
+torchvision>=0.17.0
 easyocr==1.7.1
 pytesseract==0.3.10
 opencv-python==4.9.0.80

@@ -1,5 +1,6 @@
 package com.autograder.backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,15 +13,17 @@ import java.time.LocalDateTime;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 public class Assignment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "course_id", nullable = false)
-    private Course course;
+    // Course relationship removed for simplification
+    // @ManyToOne(fetch = FetchType.LAZY)
+    // @JoinColumn(name = "course_id", nullable = false)
+    // private Course course;
 
     @Column(nullable = false)
     private String title;
@@ -31,8 +34,14 @@ public class Assignment {
     @Column(name = "total_points", nullable = false)
     private Double totalPoints;
 
-    @Column(name = "rubric_json", columnDefinition = "TEXT")
-    private String rubricJson; // JSON string containing rubric criteria
+    @Column(name = "rubric_text", columnDefinition = "TEXT")
+    private String rubricText; // Natural language grading instructions
+
+    @Column(name = "reference_solution_path")
+    private String referenceSolutionPath; // Path to instructor's solved PDF/image
+
+    @Column(name = "reference_solution_text", columnDefinition = "TEXT")
+    private String referenceSolutionText; // OCR-extracted text from reference solution
 
     @Column(name = "due_date")
     private LocalDateTime dueDate;

@@ -22,16 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-class RubricCriterion(BaseModel):
-    id: str
-    description: str
-    max_points: float
-    keywords: List[str] = []
-    required_concepts: List[str] = []
-
 class GradeRequest(BaseModel):
     student_answer: str
-    rubric: List[RubricCriterion]
+    reference_solution: str
+    rubric_text: str
     use_partial_credit: bool = True
 
 class CriterionScore(BaseModel):
@@ -48,6 +42,12 @@ class GradeResponse(BaseModel):
     percentage: float
     criterion_scores: List[CriterionScore]
     overall_confidence: float
+
+class RubricCriterion(BaseModel):
+    id: str
+    description: str
+    max_points: float
+    keywords: List[str]
 
 class PartialCreditRequest(BaseModel):
     student_answer: str
@@ -72,47 +72,121 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+def generate_grading_prompt(student_answer: str, reference_solution: str, rubric_text: str):
+    return f"""
+    You are an expert academic grader. Your task is to evaluate a student's answer based on a reference solution and specific grading instructions (rubric).
+
+    ### REFERENCE SOLUTION (Ground Truth):
+    {reference_solution}
+
+    ### GRADING INSTRUCTIONS (Rubric):
+    {rubric_text}
+
+    ### STUDENT ANSWER:
+    {student_answer}
+
+    ### TASK:
+    1. Compare the student answer to the reference solution.
+    2. Follow the grading instructions strictly.
+    3. Breakdown the score into criteria.
+    4. Provide reasoning for each criterion.
+    5. Output the result in JSON format.
+
+    ### JSON FORMAT:
+    {{
+        "total_score": float,
+        "max_score": float,
+        "criterion_scores": [
+            {{
+                "criterion_id": "string",
+                "points_awarded": float,
+                "max_points": float,
+                "confidence": float,
+                "reasoning": "string",
+                "matched_concepts": ["list", "of", "strings"]
+            }}
+        ],
+        "overall_confidence": float
+    }}
+    """
+
+import google.generativeai as genai
+import os
+import json
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure Gemini
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash') # Using flash for speed/cost
+else:
+    logger.warning("GEMINI_API_KEY not found. LLM features will use placeholders.")
+
+def call_gemini_grading(prompt: str):
+    """Call Gemini API and return structured JSON."""
+    try:
+        if not api_key:
+            return None
+        
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                temperature=0.1, # Keep it deterministic
+                response_mime_type="application/json"
+            )
+        )
+        return json.loads(response.text)
+    except Exception as e:
+        logger.error(f"Gemini API Error: {str(e)}")
+        return None
+
 @app.post("/api/grade/evaluate", response_model=GradeResponse)
 async def evaluate_submission(request: GradeRequest):
     """
-    Evaluate student submission against rubric criteria.
-    
-    TODO: Implement:
-    - BERT semantic similarity matching
-    - Keyword/concept detection
-    - Partial credit calculation
-    - Confidence scoring
+    Evaluate student submission using Google Gemini API.
     """
     try:
-        logger.info(f"Evaluating submission with {len(request.rubric)} criteria")
+        logger.info("Evaluating submission with Google Gemini API")
         
-        # Placeholder scoring logic
-        criterion_scores = []
-        total = 0.0
-        max_total = 0.0
+        prompt = generate_grading_prompt(
+            request.student_answer, 
+            request.reference_solution, 
+            request.rubric_text
+        )
         
-        for criterion in request.rubric:
-            # TODO: Implement actual NLP-based scoring
-            points = criterion.max_points * 0.75  # Placeholder: 75% credit
-            
-            criterion_scores.append(CriterionScore(
-                criterion_id=criterion.id,
-                points_awarded=points,
-                max_points=criterion.max_points,
-                confidence=0.80,
-                reasoning=f"Matched concepts: {', '.join(criterion.keywords[:2])}",
-                matched_concepts=criterion.keywords[:2]
-            ))
-            
-            total += points
-            max_total += criterion.max_points
+        # Real AI Call
+        ai_result = call_gemini_grading(prompt)
+        
+        if ai_result:
+            # Parse AI JSON into DTOs
+            criterion_scores = [
+                CriterionScore(**score) for score in ai_result.get("criterion_scores", [])
+            ]
+            total = ai_result.get("total_score", 0.0)
+            max_total = ai_result.get("max_score", 0.0)
+            confidence = ai_result.get("overall_confidence", 0.90)
+        else:
+            # Fallback to placeholder if API fails or No Key
+            logger.warning("Using placeholder grading logic (API failure or no key)")
+            criterion_scores = [
+                CriterionScore(
+                    criterion_id="methodology",
+                    points_awarded=4.0, max_points=5.0, confidence=0.92,
+                    reasoning="[Placeholder] API Key missing. Please set GEMINI_API_KEY.",
+                    matched_concepts=["placeholder"]
+                )
+            ]
+            total, max_total, confidence = 4.0, 5.0, 0.5
         
         return GradeResponse(
             total_score=total,
             max_score=max_total,
             percentage=(total / max_total * 100) if max_total > 0 else 0,
             criterion_scores=criterion_scores,
-            overall_confidence=0.78
+            overall_confidence=confidence
         )
     except Exception as e:
         logger.error(f"Error evaluating submission: {str(e)}")

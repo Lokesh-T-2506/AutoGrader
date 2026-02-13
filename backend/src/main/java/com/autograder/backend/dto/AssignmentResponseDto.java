@@ -17,7 +17,9 @@ public class AssignmentResponseDto {
     private String title;
     private String description;
     private Double totalPoints;
-    private String rubricJson;
+    private String rubricText;
+    private String referenceSolutionPath;
+    private String referenceSolutionText;
     private LocalDateTime dueDate;
     private LocalDateTime createdAt;
 }

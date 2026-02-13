@@ -54,52 +54,77 @@ async def root():
 async def health_check():
     return {"status": "healthy"}
 
+def generate_feedback_prompt(student_answer: str, score: float, max_score: float, reasoning: str):
+    return f"""
+    You are a supportive and professional teacher. Provide feedback to a student based on their answer and the grading reasoning.
+
+    ### STUDENT ANSWER:
+    {student_answer}
+
+    ### SCORE: {score}/{max_score}
+
+    ### GRADING REASONING:
+    {reasoning}
+
+    ### TASK:
+    Write a short, constructive feedback paragraph. Focus on strengths and specific areas for improvement.
+    """
+
+import google.generativeai as genai
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Configure Gemini
+api_key = os.getenv("GEMINI_API_KEY")
+if api_key:
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel('gemini-1.5-flash')
+else:
+    logger.warning("GEMINI_API_KEY not found. Feedback will use placeholders.")
+
+def call_gemini_feedback(prompt: str):
+    """Call Gemini API for natural language feedback."""
+    try:
+        if not api_key: return None
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        logger.error(f"Gemini API Error: {str(e)}")
+        return None
+
 @app.post("/api/feedback/generate", response_model=FeedbackResponse)
 async def generate_feedback(request: FeedbackRequest):
     """
-    Generate personalized feedback for student submission.
-    
-    TODO: Implement:
-    - GPT/LLM-based feedback generation
-    - Template-based fallback
-    - Tone adjustment
-    - Personalization
+    Generate personalized feedback for student submission using Google Gemini API.
     """
     try:
-        logger.info("Generating feedback")
+        logger.info("Generating feedback with Google Gemini")
         
-        # Placeholder feedback
-        percentage = (request.score / request.max_score * 100) if request.max_score > 0 else 0
+        prompt = generate_feedback_prompt(
+            request.student_answer,
+            request.score,
+            request.max_score,
+            ", ".join(request.identified_errors) if request.identified_errors else "N/A"
+        )
+
+        # Real AI Call
+        ai_feedback = call_gemini_feedback(prompt)
         
-        feedback_text = f"""Great effort on this problem! You earned {request.score}/{request.max_score} points ({percentage:.1f}%).
-
-STRENGTHS:
-- Clear problem setup and identification of key variables
-- Good understanding of fundamental concepts
-
-AREAS FOR IMPROVEMENT:
-- Pay attention to units in your final answer
-- Show intermediate steps more clearly
-- Double-check calculations for arithmetic errors
-
-Keep practicing similar problems to strengthen your understanding!"""
+        if ai_feedback:
+            feedback_text = ai_feedback
+            confidence = 0.95
+        else:
+            # Fallback
+            feedback_text = "[Placeholder] Great effort! (API Key missing or error). Review your steps for minor errors."
+            confidence = 0.5
         
         return FeedbackResponse(
             feedback=feedback_text,
-            suggestions=[
-                "Review unit conversions",
-                "Practice showing detailed work",
-                "Verify calculations step-by-step"
-            ],
-            strengths=[
-                "Clear problem setup",
-                "Good conceptual understanding"
-            ],
-            areas_for_improvement=[
-                "Unit handling",
-                "Showing intermediate steps",
-                "Arithmetic accuracy"
-            ],
+            suggestions=["Review the reference solution for methodology", "Check calculations"],
+            strengths=["Good structure", "Concept alignment"],
+            areas_for_improvement=["Final accuracy"],
             tone="constructive"
         )
     except Exception as e:

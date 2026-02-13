@@ -24,7 +24,9 @@ public class AssignmentRequestDto {
     @NotNull(message = "Total points is required")
     private Double totalPoints;
 
-    private String rubricJson; // JSON string containing rubric criteria
+    private String rubricText; // Natural language grading instructions
+
+    private String referenceSolutionPath;
 
     private LocalDateTime dueDate;
 }

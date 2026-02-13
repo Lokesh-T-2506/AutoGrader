@@ -1,5 +1,7 @@
 package com.autograder.backend.controller;
 
+import com.autograder.backend.service.GradingService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -9,16 +11,19 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/grading")
 @CrossOrigin(origins = "*")
+@RequiredArgsConstructor
 public class GradingController {
 
+    private final GradingService gradingService;
+
     @PostMapping("/jobs")
-    public ResponseEntity<?> createGradingJob(@RequestBody Map<String, Object> request) {
-        // TODO: Implement grading job creation
+    public ResponseEntity<?> createGradingJob(@RequestBody com.autograder.backend.dto.GradingJobRequestDto request) {
+        gradingService.startGrading(request.getSubmissionId());
+
         Map<String, Object> response = new HashMap<>();
-        response.put("message", "Create grading job endpoint - implementation pending");
-        response.put("submissionId", request.get("submissionId"));
-        response.put("jobId", 1L); // Placeholder
-        response.put("status", "PENDING");
+        response.put("message", "Grading process started");
+        response.put("submissionId", request.getSubmissionId());
+        response.put("status", "PROCESSING");
 
         return ResponseEntity.ok(response);
     }
