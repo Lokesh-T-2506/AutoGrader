@@ -1,44 +1,33 @@
-# General
-.DS_Store
-.idea/
-.vscode/
-*.log
-*.tmp
+# AutoGrader .gitignore
 
-# Backend (Java/Gradle)
+# Java / Gradle
+backend/bin/
 backend/build/
-backend/.gradle/
-backend/out/
-backend/*.jar
-backend/*.war
-backend/.env
+.gradle/
+*.class
 
-# ML Services (Python)
-ml-services/**/__pycache__/
-ml-services/**/*.pyc
-ml-services/**/.pytest_cache/
-ml-services/**/venv/
-ml-services/**/env/
-ml-services/**/.env
-ml-services/**/models/downloaded/
-ml-services/**/data/uploads/
-ml-services/**/*.egg-info/
+# Python
+__pycache__/
+*.pyc
+.env
+.venv/
+env/
 
-# Jupyter Notebooks
-ml-services/**/.ipynb_checkpoints/
-ml-services/**/notebooks/outputs/
-
-# Database
-*.db
-*.sqlite
-
-# Frontend (when added)
-frontend/node_modules/
-frontend/build/
-frontend/dist/
-
-# Docker
-docker-compose.override.yml
+# ML Service Temporary Data
+ml-services/**/debug_*.png
+ml-services/**/*.log
+ml-services/**/*.txt
+debug_crops/
+debug_results/
+tmp/
+*.log
+*.txt
+*.png
+*.jpg
+*.jpeg
+!backend/src/main/resources/static/*.png
+!backend/src/main/resources/static/*.jpg
 
 # OS
+.DS_Store
 Thumbs.db

@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AutoGrader — Vision-First AI Grading</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f1117;
+      color: #e1e4e8;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container { max-width: 900px; margin: 0 auto; }
+
+    h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #58a6ff;
+      margin-bottom: 0.25rem;
+    }
+
+    .subtitle {
+      font-size: 0.9rem;
+      color: #8b949e;
+      margin-bottom: 2rem;
+    }
+
+    /* ── Upload Card ── */
+    .card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 10px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .card h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #c9d1d9;
+    }
+
+    .upload-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+
+    .file-field label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #8b949e;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    .file-field input[type="file"] {
+      width: 100%;
+      padding: 0.5rem;
+      background: #21262d;
+      border: 1px dashed #30363d;
+      border-radius: 6px;
+      color: #e1e4e8;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+
+    .file-field input[type="file"]:hover {
+      border-color: #58a6ff;
+    }
+
+    /* ── Rubric Field ── */
+    .rubric-field { margin-top: 1.2rem; }
+    .rubric-field label {
+       display: block; font-size: 0.8rem; font-weight: 600; color: #8b949e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem;
+    }
+    .rubric-field textarea {
+      width: 100%; padding: 0.75rem; background: #21262d; border: 1px solid #30363d; border-radius: 6px; color: #e1e4e8; font-size: 0.85rem; resize: vertical; min-height: 70px; font-family: inherit;
+    }
+    .rubric-field textarea:focus { border-color: #58a6ff; outline: none; }
+
+    /* ── Button ── */
+    #submitBtn {
+      display: block;
+      width: 100%;
+      padding: 0.85rem;
+      margin-top: 1.25rem;
+      background: #238636;
+      border: none;
+      border-radius: 6px;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    #submitBtn:hover:not(:disabled) { background: #2ea043; }
+    #submitBtn:disabled { background: #21262d; color: #6e7681; cursor: not-allowed; }
+
+    /* ── Status ── */
+    #status {
+      display: none;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    #status.loading {
+      display: block;
+      background: #1c2128;
+      border: 1px solid #388bfd;
+      color: #79c0ff;
+    }
+
+    #status.error {
+      display: block;
+      background: #1c1218;
+      border: 1px solid #f85149;
+      color: #ff7b72;
+    }
+
+    /* ── Spinner ── */
+    .spinner {
+      display: inline-block;
+      width: 14px; height: 14px;
+      border: 2px solid #388bfd;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      vertical-align: middle;
+      margin-right: 8px;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    #results { display: none; }
+
+    .metric-bar {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .metric {
+      flex: 1;
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 8px;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .metric .value {
+      font-size: 2rem;
+      font-weight: 700;
+      color: #58a6ff;
+    }
+
+    .metric .label {
+      font-size: 0.75rem;
+      color: #8b949e;
+      margin-top: 0.25rem;
+    }
+
+    /* ── Zone Table ── */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      text-align: left;
+      padding: 0.65rem 1rem;
+      background: #21262d;
+      color: #8b949e;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    tbody tr { border-bottom: 1px solid #21262d; }
+    tbody tr:hover { background: #1c2128; }
+
+    tbody td {
+      padding: 0.75rem 1rem;
+      vertical-align: top;
+    }
+
+    .zone-id {
+      font-weight: 700;
+      color: #58a6ff;
+      font-size: 1rem;
+    }
+
+    .score-badge {
+      display: inline-block;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.9rem;
+    }
+
+    .score-high   { background: #1a3a26; color: #3fb950; }
+    .score-medium { background: #3a2f1a; color: #d29922; }
+    .score-low    { background: #3a1a1a; color: #f85149; }
+
+    .concept-tag {
+      display: inline-block;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      background: #21262d;
+      border: 1px solid #30363d;
+      font-size: 0.78rem;
+      color: #8b949e;
+    }
+
+    .reasoning { font-size: 0.82rem; color: #8b949e; margin-top: 0.2rem; }
+
+    .confidence-bar-wrap { display: flex; align-items: center; gap: 0.4rem; }
+    .confidence-bar-bg {
+      flex: 1; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden;
+    }
+    .confidence-bar-fill { height: 100%; border-radius: 3px; background: #58a6ff; }
+    .confidence-val { font-size: 0.75rem; color: #8b949e; white-space: nowrap; }
+
+    /* ── Analytics ── */
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .mastery-item {
+      padding: 0.75rem 1rem;
+      background: #21262d;
+      border-radius: 6px;
+    }
+
+    .mastery-item .concept-name { font-weight: 600; margin-bottom: 0.25rem; }
+    .mastery-item .mastery-level {
+      font-size: 0.78rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      display: inline-block;
+    }
+
+    .mastery-High   { background: #1a3a26; color: #3fb950; }
+    .mastery-Medium { background: #3a2f1a; color: #d29922; }
+    .mastery-Low    { background: #3a1a1a; color: #f85149; }
+
+    .mastery-score { color: #8b949e; font-size: 0.85rem; }
+
+    .recommendation {
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: #1c2128;
+      border-left: 3px solid #388bfd;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.88rem;
+      color: #79c0ff;
+    }
+
+    .alignment-notice {
+      margin-top: 1rem;
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+    }
+
+    .alignment-good { background: #1a3a26; border: 1px solid #2ea043; color: #3fb950; }
+    .alignment-warn { background: #3a2f1a; border: 1px solid #d29922; color: #d29922; }
+    .alignment-bad  { background: #3a1a1a; border: 1px solid #f85149; color: #f85149; }
+  </style>
+</head>
+<body>
+<div class="container">
+
+  <h1>⚡ AutoGrader</h1>
+  <p class="subtitle">Vision-First Multimodal AI Grading System — Final Year Project Demo</p>
+
+  <!-- Upload Card -->
+  <div class="card">
+    <h2>Upload Files</h2>
+    <div class="upload-grid">
+      <div class="file-field">
+        <label for="templateFile">📋 Template</label>
+        <input type="file" id="templateFile" accept="image/*">
+      </div>
+      <div class="file-field">
+        <label for="instructorFile">🔑 Instructor Key</label>
+        <input type="file" id="instructorFile" accept="image/*">
+      </div>
+      <div class="file-field">
+        <label for="studentFile">📝 Student Paper</label>
+        <input type="file" id="studentFile" accept="image/*">
+      </div>
+    </div>
+    <div class="rubric-field">
+      <label for="rubricText">📝 Instructor Rubric (Optional)</label>
+      <textarea id="rubricText" placeholder="Enter custom grading instructions... (e.g. 'Award 2 pts for formula, 3 pts for correct numeric answer')"></textarea>
+    </div>
+    <button id="submitBtn">Run Grading Pipeline</button>
+  </div>
+
+  <!-- Status -->
+  <div id="status"></div>
+
+  <!-- Results -->
+  <div id="results">
+
+    <!-- Metrics bar -->
+    <div class="metric-bar" id="metricBar"></div>
+
+    <!-- Per-Zone Scores -->
+    <div class="card">
+      <h2>Per-Zone Scores</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Zone</th>
+            <th>Score</th>
+            <th>Confidence</th>
+            <th>Concept — Reasoning</th>
+          </tr>
+        </thead>
+        <tbody id="zonesBody"></tbody>
+      </table>
+
+      <div id="alignmentNotice"></div>
+    </div>
+
+    <!-- Analytics Summary -->
+    <div class="card">
+      <h2>Class Analytics</h2>
+      <div class="analytics-grid" id="analyticsGrid"></div>
+      <div class="recommendation" id="recommendation"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const btn    = document.getElementById('submitBtn');
+  const status = document.getElementById('status');
+
+  document.getElementById('submitBtn').addEventListener('click', async () => {
+    const template   = document.getElementById('templateFile').files[0];
+    const instructor = document.getElementById('instructorFile').files[0];
+    const student    = document.getElementById('studentFile').files[0];
+    const rubricVal  = document.getElementById('rubricText').value;
+
+    if (!template || !instructor || !student) {
+      showStatus('error', 'Please select all 3 files before submitting.');
+      return;
+    }
+
+    // UI: loading state
+    btn.disabled = true;
+    btn.textContent = 'Processing…';
+    document.getElementById('results').style.display = 'none';
+    showStatus('loading', '<span class="spinner"></span> Running pipeline: aligning paper → cropping zones → grading with Gemini Vision → generating analytics. This takes ~30-60 seconds.');
+
+    const form = new FormData();
+    form.append('template',   template);
+    form.append('instructor', instructor);
+    form.append('student',    student);
+    if (rubricVal.trim() !== '') { form.append('rubric', rubricVal); }
+
+    try {
+      const res = await fetch('/api/grading/run', { method: 'POST', body: form });
+      const data = await res.json();
+
+      if (!res.ok || data.error) {
+        showStatus('error', '❌ ' + (data.error || 'Server returned an error.'));
+        return;
+      }
+
+      status.style.display = 'none';
+      renderResults(data);
+
+    } catch (err) {
+      showStatus('error', '❌ Could not reach the server. Ensure Spring Boot is running on port 8080.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Run Grading Pipeline';
+    }
+  });
+
+  function showStatus(type, html) {
+    status.className = type;
+    status.innerHTML = html;
+    status.style.display = 'block';
+  }
+
+  function renderResults(data) {
+    const zones     = data.per_zone_scores  || [];
+    const analytics = data.analytics        || {};
+    const conf      = data.alignment_confidence ?? 0;
+
+    // ── Metrics bar ──
+    const totalEarned  = zones.reduce((s, z) => s + (z.score || 0), 0);
+    const totalMax     = zones.reduce((s, z) => s + (z.max_score || 10), 0);
+    const overallPct   = totalMax > 0 ? ((totalEarned / totalMax) * 100).toFixed(1) : 0;
+
+    document.getElementById('metricBar').innerHTML = `
+      <div class="metric">
+        <div class="value">${zones.length}</div>
+        <div class="label">Zones Graded</div>
+      </div>
+      <div class="metric">
+        <div class="value">${totalEarned.toFixed(1)} / ${totalMax}</div>
+        <div class="label">Total Score</div>
+      </div>
+      <div class="metric">
+        <div class="value">${overallPct}%</div>
+        <div class="label">Percentage</div>
+      </div>
+      <div class="metric">
+        <div class="value">${(conf * 100).toFixed(0)}%</div>
+        <div class="label">Alignment Confidence</div>
+      </div>
+    `;
+
+    // ── Zone table ──
+    const tbody = document.getElementById('zonesBody');
+    tbody.innerHTML = zones.map(z => {
+      const pct = z.max_score > 0 ? (z.score / z.max_score) : 0;
+      const scoreClass = pct >= 0.8 ? 'score-high' : pct >= 0.5 ? 'score-medium' : 'score-low';
+      const confPct = ((z.confidence || 0) * 100).toFixed(0);
+      return `
+        <tr>
+          <td><span class="zone-id">Zone ${z.zone_id}</span></td>
+          <td>
+            <span class="score-badge ${scoreClass}">${z.score ?? '—'} / ${z.max_score ?? 10}</span>
+          </td>
+          <td>
+            <div class="confidence-bar-wrap">
+              <div class="confidence-bar-bg">
+                <div class="confidence-bar-fill" style="width:${confPct}%"></div>
+              </div>
+              <span class="confidence-val">${confPct}%</span>
+            </div>
+          </td>
+          <td>
+            <span class="concept-tag">${z.concept || 'Physics'}</span>
+            <div class="reasoning">${z.reasoning || ''}</div>
+          </td>
+        </tr>`;
+    }).join('');
+
+    // ── Alignment notice ──
+    const confClass = conf >= 0.8 ? 'alignment-good' : conf >= 0.4 ? 'alignment-warn' : 'alignment-bad';
+    const confMsg   = conf >= 0.8
+      ? `✓ Geometric alignment verified (${(conf*100).toFixed(0)}% RANSAC confidence). Scores are reliable.`
+      : conf >= 0.4
+      ? `⚠ Moderate alignment confidence (${(conf*100).toFixed(0)}%). Results may be slightly off — consider rescanning with a flatter angle.`
+      : `✗ Low alignment confidence (${(conf*100).toFixed(0)}%). Paper may be too skewed. Results should be manually reviewed.`;
+
+    document.getElementById('alignmentNotice').innerHTML =
+      `<div class="alignment-notice ${confClass}">${confMsg}</div>`;
+
+    // ── Analytics ──
+    const breakdown = analytics.concept_breakdown || {};
+    document.getElementById('analyticsGrid').innerHTML = Object.entries(breakdown).map(([name, data]) => `
+      <div class="mastery-item">
+        <div class="concept-name">${name}</div>
+        <div>
+          <span class="mastery-level mastery-${data.mastery_level}">${data.mastery_level} Mastery</span>
+          <span class="mastery-score" style="margin-left:0.5rem">${data.average_score ?? 0}%</span>
+        </div>
+        ${data.common_misconception && data.common_misconception !== 'No major issues.'
+          ? `<div class="reasoning" style="margin-top:0.3rem">⚠ ${data.common_misconception}</div>`
+          : ''}
+      </div>
+    `).join('');
+
+    document.getElementById('recommendation').innerHTML =
+      `📋 <strong>Recommendation:</strong> ${analytics.teacher_recommendation || 'No recommendation generated.'}`;
+
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
