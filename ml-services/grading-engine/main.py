@@ -69,6 +69,7 @@ app.add_middleware(
 class GradeRequest(BaseModel):
     student_image_b64: str  # Base64 string of the handwriting crop
     reference_solution: str
+    reference_image_b64: Optional[str] = None
     rubric_text: str
     question_text: str = ""
 
@@ -129,7 +130,8 @@ def build_multimodal_prompt(reference: str, rubric: str, question: str) -> str:
 3. Transcribe what you see in the image and grade it.
 4. If handwriting is illegible, lower confidence and flag for review.
 5. Identify the core physics/math concept the student is using (e.g. 'Ohm's Law', 'Conservation of Energy').
-6. Output ONLY valid JSON — no markdown.
+6. CRITICAL: In your reasoning, explicitly state the final mathematical calculation value found in BOTH the student and instructor key (e.g. '1.1 x 10^-8').
+7. Output ONLY valid JSON — no markdown.
 
 {{
   "total_score": <float>,
@@ -149,7 +151,7 @@ def build_multimodal_prompt(reference: str, rubric: str, question: str) -> str:
   ]
 }}"""
 
-async def call_gemini_multimodal(image_b64: str, prompt: str, max_retries: int = 5) -> Optional[dict]:
+async def call_gemini_multimodal(image_b64: str, prompt: str, ref_image_b64: Optional[str] = None, max_retries: int = 5) -> Optional[dict]:
     if not api_key:
         return None
 
@@ -158,17 +160,33 @@ async def call_gemini_multimodal(image_b64: str, prompt: str, max_retries: int =
     )
     headers = {"Content-Type": "application/json"}
     
+    parts_list = []
+    
+    # 1. Provide the text prompt
+    parts_list.append({"text": prompt})
+    
+    # 2. Provide the reference image (if available) so Gemini is not blind
+    if ref_image_b64:
+        parts_list.append({"text": "INSTRUCTOR KEY IMAGE:"})
+        parts_list.append({
+            "inline_data": {
+                "mime_type": "image/jpeg",
+                "data": ref_image_b64
+            }
+        })
+        
+    # 3. Provide the student image
+    parts_list.append({"text": "STUDENT SUBMISSION IMAGE:"})
+    parts_list.append({
+        "inline_data": {
+            "mime_type": "image/jpeg",
+            "data": image_b64
+        }
+    })
+    
     payload = {
         "contents": [{
-            "parts": [
-                {"text": prompt},
-                {
-                    "inline_data": {
-                        "mime_type": "image/jpeg",
-                        "data": image_b64
-                    }
-                }
-            ]
+            "parts": parts_list
         }],
         "generationConfig": {"temperature": 0.1},
     }
@@ -239,7 +257,7 @@ async def evaluate_vision_submission(request: GradeRequest):
             request.question_text
         )
         
-        result = await call_gemini_multimodal(request.student_image_b64, prompt)
+        result = await call_gemini_multimodal(request.student_image_b64, prompt, request.reference_image_b64)
         
         if result is None:
             raise HTTPException(status_code=503, detail="Gemini Grading Service Unavailable (Rate Limit or API Error)")
