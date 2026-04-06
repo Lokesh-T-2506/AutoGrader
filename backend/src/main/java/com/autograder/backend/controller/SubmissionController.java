@@ -56,7 +56,11 @@ public class SubmissionController {
             }
 
             // Save file
-            String fileName = UUID.randomUUID() + "_" + file.getOriginalFilename();
+            String originalFilename = file.getOriginalFilename();
+            if (originalFilename == null || originalFilename.isEmpty()) {
+                originalFilename = "submission.png";
+            }
+            String fileName = UUID.randomUUID() + "_" + originalFilename;
             Path filePath = uploadPath.resolve(fileName);
             Files.copy(file.getInputStream(), filePath);
 

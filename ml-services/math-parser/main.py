@@ -4,6 +4,8 @@ from pydantic import BaseModel
 from typing import Optional
 import uvicorn
 import logging
+from sympy import sympify, latex, pretty, Integral, Derivative
+from sympy.parsing.latex import parse_latex
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -67,14 +69,30 @@ async def parse_expression(request: MathParseRequest):
     try:
         logger.info(f"Parsing expression: {request.expression}")
         
-        # Placeholder response
-        return MathParseResponse(
-            latex=r"\int_0^1 x^2 dx",
-            plaintext="integral from 0 to 1 of x squared",
-            symbolic="Integral(x**2, (x, 0, 1))",
-            is_valid=True,
-            confidence=0.90
-        )
+        # Try to parse as LaTeX if it looks like LaTeX, otherwise standard SymPy
+        try:
+            if "\\" in request.expression or "^" in request.expression:
+                expr = parse_latex(request.expression)
+            else:
+                expr = sympify(request.expression)
+            
+            return MathParseResponse(
+                latex=latex(expr),
+                plaintext=pretty(expr),
+                symbolic=str(expr),
+                is_valid=True,
+                confidence=0.95
+            )
+        except Exception as e:
+            logger.warning(f"SymPy parse failed: {str(e)}")
+            # Fallback for simple strings
+            return MathParseResponse(
+                latex=request.expression,
+                plaintext=request.expression,
+                symbolic=request.expression,
+                is_valid=False,
+                confidence=0.3
+            )
     except Exception as e:
         logger.error(f"Error parsing expression: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
@@ -89,12 +107,15 @@ async def validate_expression(request: MathValidateRequest):
     try:
         logger.info(f"Validating expression: {request.expression}")
         
-        # Placeholder response
-        return MathValidateResponse(
-            is_valid=True,
-            error_message=None,
-            suggestions=[]
-        )
+        try:
+            sympify(request.expression)
+            return MathValidateResponse(is_valid=True, error_message=None)
+        except Exception as e:
+            return MathValidateResponse(
+                is_valid=False, 
+                error_message=str(e),
+                suggestions=["Check for missing operators", "Ensure balanced parentheses"]
+            )
     except Exception as e:
         logger.error(f"Error validating expression: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))

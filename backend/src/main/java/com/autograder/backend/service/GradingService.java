@@ -29,23 +29,16 @@ public class GradingService {
         GradingJob job = new GradingJob();
         job.setSubmission(submission);
         job.setStatus(GradingJob.JobStatus.PROCESSING);
+        job.setStatus(GradingJob.JobStatus.FAILED);
         job.setStartedAt(LocalDateTime.now());
-        GradingJob savedJob = gradingJobRepository.save(job);
+        job.setErrorMessage("Use /api/grading/run with multipart files for the vision pipeline.");
+        job.setCompletedAt(LocalDateTime.now());
+        gradingJobRepository.save(job);
 
-        // Chain the ML calls
-        Assignment assignment = submission.getAssignment();
-
-        mlServiceClient.extractText(submission.getFilePath())
-                .flatMap(studentText -> mlServiceClient.evaluateSubmission(
-                        studentText,
-                        assignment.getReferenceSolutionText(),
-                        assignment.getRubricText()).map(resultDto -> {
-                            saveGradingResult(savedJob, resultDto, studentText);
-                            return resultDto;
-                        }))
-                .subscribe(
-                        success -> log.info("Grading completed for submission: {}", submissionId),
-                        error -> handleGradingError(savedJob, error));
+        // NOTE: Legacy DB-backed grading flow.
+        // The Vision pipeline is now handled by GradingOrchestrationController.
+        // This method is kept to satisfy existing API contracts but does nothing in the demo.
+        log.info("startGrading({}) called — using GradingOrchestrationController for vision pipeline instead.", submissionId);
     }
 
     private void saveGradingResult(GradingJob job, GradingResultRequestDto dto, String studentText) {
