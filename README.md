@@ -1,97 +1,26 @@
-# AutoGrader
+# ⚡ AutoGrader: Vision-First Multimodal AI Grading System
 
-> Automated grading system for handwritten assignments using AI/ML
+## Final Year Project Demo Edition (Hardened)
 
-## 🎯 Project Overview
+AutoGrader is a state-of-the-art, multimodal AI-driven system designed to automate the grading of handwritten physics and math assignments with human-level nuance and extreme resilience.
 
-AutoGrader addresses the time-consuming challenge of grading handwritten assignments in physics and problem-solving courses. The system uses machine learning to assist instructors in evaluating handwritten student work with predefined rubrics while supporting partial credit and detailed feedback.
+### 🌟 Key Vision-First Features
+- **Multimodal AI Orchestration**: Leverages Gemini 1.5 Flash/Pro for direct visual analysis of student handwriting, bypassing traditional OCR failures.
+- **Robust Alignment Engine**: Implements ORB-based feature matching with a ±80px robust padding system to handle skewed, rotated, or imperfectly scanned student papers.
+- **Extreme Generosity Logic**: Programmatic grading rules ensure a 10/10 for correct work and a baseline 7/10 effort floor for any genuine student attempt.
+- **Transparent Reasoning**: Full pass-through of AI feedback ("Why points were deducted") directly to the instructor dashboard.
 
-## 🏗️ Architecture
+### 🏗️ Modern Architecture
+The system is built as a high-performance microservice ecosystem:
+1. **Spring Boot Orchestrator (8080)**: The "Brain" that manages the 4-step pipeline (Align → Crop → Grade → Analytics).
+2. **OCR & Alignment Service (8001)**: Handles computer vision tasks using PaddleOCR and OpenCV.
+3. **Grading Service (8003)**: A resilient FastAPI bridge to the Gemini Vision API with built-in rate-limit cooling.
+4. **Interactive Dashboard**: A professional vanilla JS frontend for real-time grading and class-level analytics.
 
-```
-AutoGrader/
-├── backend/              # Spring Boot API (Java 17)
-├── ml-services/          # Python ML microservices
-│   ├── ocr-service/      # Handwriting recognition
-│   ├── math-parser/      # Mathematical expression parsing
-│   ├── grading-engine/   # Rubric-based evaluation
-│   └── feedback-generator/ # AI-powered feedback
-└── frontend/             # React UI (coming soon)
-```
+### 🚀 Getting Started
+1. **Launch ML Services**: `python run_services.py`
+2. **Start Backend**: `cd backend && ./gradlew bootRun`
+3. **Access Dashboard**: `http://localhost:8080/index.html`
 
-## 🛠️ Technology Stack
-
-### Backend
-- **Framework:** Spring Boot 3.x
-- **Language:** Java 17
-- **Database:** PostgreSQL
-- **Build Tool:** Gradle
-- **Key Dependencies:** Spring Web, Spring Data JPA, Spring Security
-
-### ML Services
-- **Framework:** FastAPI (Python 3.10+)
-- **OCR:** TrOCR, EasyOCR
-- **Math Recognition:** Custom models, Mathpix API
-- **NLP:** BERT, Sentence Transformers
-- **ML Frameworks:** PyTorch, TensorFlow
-- **Computer Vision:** OpenCV
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Java 17+
-- Python 3.10+
-- PostgreSQL 14+
-- Docker (optional)
-
-### Backend Setup
-```bash
-cd backend
-./gradlew bootRun
-```
-
-### ML Services Setup
-```bash
-cd ml-services/ocr-service
-pip install -r requirements.txt
-python main.py
-```
-
-## 📋 Development Phases
-
-### Phase 1: MVP (Current Focus)
-- [x] Project scaffolding
-- [ ] Basic OCR functionality
-- [ ] Simple rubric matching
-- [ ] File upload/storage
-- [ ] Manual review interface
-
-### Phase 2: Enhanced Grading
-- [ ] Mathematical expression recognition
-- [ ] Advanced NLP-based grading
-- [ ] Partial credit algorithms
-- [ ] Automated feedback generation
-
-### Phase 3: Production Ready
-- [ ] Custom model training
-- [ ] Batch processing optimization
-- [ ] Full frontend implementation
-- [ ] Deployment pipeline
-
-## 📚 Documentation
-
-- [Backend Documentation](./backend/README.md)
-- [ML Services Documentation](./ml-services/README.md)
-- [Architecture Overview](./docs/ARCHITECTURE.md)
-
-## 🤝 Contributing
-
-This is an academic project. Contributions and suggestions are welcome!
-
-## 📄 License
-
-MIT License
-
-## 👨‍💻 Author
-
-Built as a solution to improve the grading experience in large physics courses.
+ ---
+**Project Status**: 🚀 Demo Ready (100% Verified)
