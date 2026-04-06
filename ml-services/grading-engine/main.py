@@ -37,8 +37,8 @@ logging.getLogger().setLevel(logging.INFO)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(os.path.abspath(__file__)), ".env"))
 api_key = os.getenv("GEMINI_API_KEY")
 
-MODEL_NAME = "gemini-1.5-flash"
-BASE_URL = "https://generativelanguage.googleapis.com/v1/models"
+MODEL_NAME = "gemini-2.5-flash"
+BASE_URL = "https://generativelanguage.googleapis.com/v1beta/models"
 
 if api_key:
     logger.info(f"GEMINI_API_KEY loaded ({api_key[:10]}...)")
@@ -149,7 +149,7 @@ def build_multimodal_prompt(reference: str, rubric: str, question: str) -> str:
   ]
 }}"""
 
-async def call_gemini_multimodal(image_b64: str, prompt: str, max_retries: int = 3) -> Optional[dict]:
+async def call_gemini_multimodal(image_b64: str, prompt: str, max_retries: int = 5) -> Optional[dict]:
     if not api_key:
         return None
 
@@ -176,22 +176,24 @@ async def call_gemini_multimodal(image_b64: str, prompt: str, max_retries: int =
     # More aggressive delays for the demo to handle free-tier 429s
     base_delays = [30, 60, 120]
 
-    async with _gemini_sem:
-        # Give the rate-limiter a small moment to reset before starting
-        await asyncio.sleep(5)
+    # Semaphore removed for demo-day troubleshooting
+    if True:
+        await asyncio.sleep(1)
         
         async with httpx.AsyncClient(timeout=300) as client:
             for attempt in range(max_retries):
                 try:
                     resp = await client.post(url, headers=headers, json=payload)
 
-                    if resp.status_code == 429:
-                        wait = base_delays[min(attempt, len(base_delays) - 1)]
-                        jitter = random.uniform(-5, 10)
-                        total_wait = max(0, wait + jitter)
-                        logger.warning(f"Gemini 429 (Batch) - Quota limit reached. Retrying in {total_wait:.0f}s (Attempt {attempt+1}/{max_retries})...")
-                        await asyncio.sleep(total_wait)
-                        continue
+                    if resp.status_code != 200:
+                        logger.error(f"Gemini API Error: {resp.status_code} - {resp.text}")
+                        if resp.status_code == 429:
+                            wait = base_delays[min(attempt, len(base_delays) - 1)]
+                            logger.warning(f"Retrying in {wait}s...")
+                            await asyncio.sleep(wait)
+                            continue
+                        # Return None immediately for other errors during diagnosis
+                        return None
 
                     resp.raise_for_status()
                     data = resp.json()
