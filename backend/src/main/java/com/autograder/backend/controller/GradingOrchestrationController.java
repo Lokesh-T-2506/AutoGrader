@@ -61,8 +61,7 @@ public class GradingOrchestrationController {
 
             // ── Step 3: Resilient Serial Grading (15s cool-down) ──────────
             log.info("Step 3: Running serial grading ({} zones) with cool-downs...", studentCrops.size());
-            String baseRubric = (formRubric != null && !formRubric.trim().isEmpty()) ? formRubric : "Grade the student answer by comparing it VISUALLY to the instructor's key.";
-            String rubric = baseRubric + " VERY IMPORTANT GRADING RULE: You must be extremely generous. If the student's solution is correct or matches the instructor's key in essence (even with minor notation differences), award 10 out of 10. For any other genuine attempt that shows correct application of the physics concepts, award a baseline of at least 7 out of 10. Only award low marks for visibly blank or meaningless content.";
+            String rubric = (formRubric != null && !formRubric.trim().isEmpty()) ? formRubric : "Grade the student answer mathematically by comparing it VISUALLY to the instructor's key. Be objective.";
             List<Map<String, Object>> gradingResults = new ArrayList<>();
 
             for (Map.Entry<String, String> entry : studentCrops.entrySet()) {
